@@ -1,0 +1,117 @@
+{% extends "main.html" %}
+
+{% block contents %}
+<script>
+    $(document).ready(function() {
+        $("#summernote").summernote({
+            height: 300,
+            minHeight: null,
+            maxHeight: null,
+            callbacks: {
+                onImageUpload: function(image) {
+                    for(var i = 0 ; i < image.length ; i++) {
+                        uploadImage(image[i]);
+                    }
+                }
+            }
+        });
+    });
+
+    function uploadImage(image) {
+        var data = new FormData();
+        data.append("image", image);
+
+        var csrf_token = "{{csrf_token()}}"
+        $.ajaxSetup({
+            beforeSend: function(x, s) {
+                if(!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(s.type)) {
+                    x.setRequestHeader("X-CSRFToken", csrf_token)
+                }
+            }
+        });
+
+        $.ajax({
+            url: "{{url_for('board.upload_image')}}",
+            cache: false,
+            contentType: false,
+            processData: false,
+            data: data,
+            type: "post",
+            success: function(url) {
+                var image = $("<img>").attr("src", url).css('max-width', "900px");
+                $("#summernote").summernote("insertNode", image[0]);
+            },
+            error: function(data) {
+                console.log(data);
+                alert(data);
+            }
+        });
+    }
+</script>
+
+<script>
+/* write.html에서 수정한것처럼 바꾸기..
+    function checkForm() {
+        if($.trim($("#title").val()) == "") {
+            alert("Enter the title.")
+            $("#title").focus();
+            return false;
+        }
+        if($.trim($("#contents").val()) == "") {
+            alert("Enter the contents.")
+            $("#contents").focus();
+            return false;
+        }
+    }
+*/
+</script>
+
+<form name="form" method="POST" action="{{url_for('board.board_edit', idx=data._id)}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+    <div class="form-group">
+        <label for="name">Username</label>
+        <input class="form-control" type="text" name="name" value="{{session['name']}}" readonly>
+    </div>
+    <div class="form-group">
+        <label for="title">Title</label>
+        <input class="form-control" type="text" name="title" value="{{data.title}}">
+    </div>
+    {% if data.attachfile %}
+    <div class="form-check text-right">
+        <input type="checkbox" class="form-check-input" id="deleteoldfile" name="deleteoldfile">
+        <label class="form-check-label" for="deleteoldfile">Delete Attached File ({{data.attachfile}})</label>
+    </div>
+    {% endif %}
+    <div class="form-group">
+        <label for="contents">Contents</label>
+        <textarea rows="8" class="form-control" name="contents" id="summernote">{{data.contents}}</textarea>
+    </div>
+    <div class="custom-file">
+        <input class="custom-file-input" id="customFile" type="file" name="attachfile">
+        <label class="custom-file-label" for="customFile">Choose File</label>
+    </div>
+    <div class="text-center"><input class="btn btn-warning" type="submit" value="Edit"></div>
+</form>
+
+<!--
+<table>
+    <form name="form" method="POST" action="{{url_for('board.board_edit', idx=data._id)}}">
+    <tr>
+        <td>작성자</td>
+        <td><input type="text" name="name" value="{{session['name']}}" readonly></td>
+    </tr>
+    <tr>
+        <td>제목</td>
+        <td><input type="text" name="title" value={{data.title}}></td>
+    </tr>
+    <tr>
+        <td>내용</td>
+        <td><textarea name="contents">{{data.contents}}</textarea></td>
+    </tr>
+    <tr>
+        <td colspan="2"><input type="submit"></td>
+    </tr>
+    </form>
+</table>
+-->
+{% endblock %}

@@ -1,0 +1,6 @@
+{% if session.get("id") is not none %}
+    <a class="float-right" href="{{url_for('member.member_logout')}}">Log Out</a>
+{% else %}
+    <a href="{{url_for('member.member_login')}}">Log In</a>
+    <a href="{{url_for('member.member_join')}}">Sign Up</a>
+{% endif %}

@@ -1,0 +1,206 @@
+{% extends "main.html" %}
+
+{% block contents %}
+
+<script>
+$(function() {
+    get_comment_list();
+});
+
+function editCommentOk(idx) {
+    var n_comment = $("#i" + idx).val();
+    var data = {
+        "id": idx,
+        "csrf_token": "{{csrf_token()}}",
+        "comment": n_comment,
+    }
+
+    $.ajax({
+        url: "{{url_for('board.comment_edit')}}",
+        type: "POST",
+        cache: false,
+        data: data,
+        success: function(data) {
+            get_comment_list();
+        },
+        error: function(request, status, error) {
+            var msg = "ERROR : " + request.status + "<br>"
+            msg +=  + "Comment : " + request.responseText + "<br>" + error;
+            console.log(msg);  
+        }
+    });
+}
+
+
+function editComment(idx) {
+    var html = "";
+    var comment = $("#t" + idx).data("comment");
+    html += "<textarea row=3 cols=110 id='i" + idx + "'>" + comment;
+    html += "</textarea>"
+    html += "<a href='#' onclick='editCommentOk(\"" + idx + "\")'>Save</a>";
+    html += "<a href='#' onclick='cancelEdit(\"" + idx + "\")'>Cancel</a>";
+    $("#t" + idx).html(html);
+}
+
+
+function cancelEdit(idx) {
+    var html = "";
+    var comment = $("#t" + idx).data("comment");
+    html += comment;
+
+    html += " <a href='#' onclick='deleteComment(\"" + idx + "\");'>Delete</a>";
+    html += " | <a href='#' onclick='editComment(\"" + idx + "\");'>Edit</a>";
+
+    $("#t" + idx).html(html);
+}
+
+function deleteComment(idx) {
+    var data = {
+        "id": idx,
+        "csrf_token": "{{ csrf_token() }}"
+    }
+    $.ajax({
+        url: "{{url_for('board.comment_delete')}}",
+        type: "POST",
+        cache: false,
+        data: data,
+        success: function(data) {
+            get_comment_list();
+        },
+        error: function(request, status, error) {
+            var msg = "ERROR : " + request.status + "<br>"
+            msg +=  + "Comment : " + request.responseText + "<br>" + error;
+            console.log(msg);  
+        }
+    });
+}
+
+function get_comment_list() {
+    $.ajax({
+        url: "{{url_for('board.comment_list', root_idx=result.id)}}",
+        type: "GET",
+        cache: false,
+        dataType: "json",
+        success: function(data) {
+            if(data.error == "success") {
+                console.log(data);
+                c = data.lists;
+                html = "";
+                if (c.length > 0) {
+                    for(i = 0 ; i < c.length ; i++) {
+                        html += "<div>";
+                        html += "<table class='table'>";
+
+                        // 댓글 수정기능을 위해 td 에 고유 id 를 부여하고
+                        // data 속성을 이용해서 원본 댓글 내용을 저장해놓습니다.
+                        html += "<tr>";
+                        html += "<td width='100'><h6>" + c[i].name + "</h6></td>";
+                        html += "<td class='text-left' id='t" + c[i].id + "' data-comment='" + c[i].comment + "'>";
+                        html += c[i].comment.replace(/\n/g, "<br>");
+                        if (c[i].owner) {
+                            html += " <a href='#' onclick='deleteComment(\"" + c[i].id+ "\");'>Delete</a>";
+                            html += " | <a href='#' onclick='editComment(\"" + c[i].id+ "\");'>Edit</a>";
+                        } else {
+                            html += "";
+                        }
+                        html += "</td>"
+                        html += "<td class='text-right' width='200'>" + c[i].pubdate + "</td>";
+                        html += "</tr>";
+                        html += "</table>";
+                        html += "</div>";
+                    }
+                }
+
+                $("#cCnt").html(c.length);
+                $("#commentList").html(html);
+            }
+        },
+
+        error: function(request, status, error) {
+            var msg = "ERROR : " + request.status + "<br>"
+            msg +=  + "Comment : " + request.responseText + "<br>" + error;
+            console.log(msg);  
+        }
+    });
+}
+
+function addComment() {
+    $.ajax({
+        url: "{{url_for('board.comment_write')}}",
+        type: "POST",
+        data: $("#commentForm").serialize(),
+        success: function(data) {
+            $("#comment").val("");
+            get_comment_list();
+        },
+        error: function(request, status, error) {
+
+        }
+    })
+}
+</script>
+
+<table class="table table-bordered">
+    <tbody>
+        <tr>
+            <td colspan="2">{{result.title}}</td>
+        </tr>
+        <tr>
+            <td>{{result.name}}</td>
+            <td class="text-right">{{result.pubdate | formatdatetime}}</td>
+        </tr>
+        {% if result.attachfile %}
+        <tr>
+            <td>Attached File</td>
+            <td class="text-right"><a href="{{url_for('board.board_files', filename=result.attachfile)}}">{{result.attachfile}}</a></td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td colspan="2"><div style="min-height:200px;">{% autoescape false %}{{result.contents}}{% endautoescape %}</div></td>
+        </tr>
+    </tbody>
+</table>
+
+<!--
+{{result.title}}
+<br>
+{{result.name}}
+<br>
+{{result.pubdate|formatdatetime}}
+<br>
+{{result.view}}
+<br>
+{{result.contents}}
+<br>
+-->
+
+<a class="btn btn-primary" href="{{url_for('board.lists', page=page, search=search, keyword=keyword)}}">List</a>
+
+{% if session["id"] == result.writer_id %}
+<a class="btn btn-danger float-right ml-2" href="{{url_for('board.board_delete', idx=result.id)}}">Delete</a>
+<a class="btn btn-warning float-right" href="{{url_for('board.board_edit', idx=result.id)}}">Edit</a>
+{% endif %}
+
+
+<br><br>
+<form id="commentForm" name="commentForm" action="{{url_for('board.comment_write')}}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}"/>
+    <input type="hidden" name="root_idx" value="{{result.id}}">
+    <div>
+        <span><strong>Comment</strong></span> <span id="cCnt"></span>
+        <table class="table">                    
+            <tr>
+                <td>
+                    <textarea rows="3" cols="110" id="comment" name="comment" placeholder="type your comment"></textarea>
+                    <br>
+                </td>
+                <td>
+                    <input type="submit" class="btn btn-success" style="height: 90px;" value="등록하기">
+                </td>
+            </tr>
+        </table>
+    </div>
+</form>
+
+<div id="commentList"></div>
+{% endblock %}
